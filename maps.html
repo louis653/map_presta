@@ -2,157 +2,116 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Carte prestataires</title>
+  <title>Carte des prestataires</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
     #map { height: 500px; margin-top: 20px; }
     #resultat { margin-top: 10px; font-size: 18px; }
+    input { padding: 5px; font-size: 14px; }
+    button { padding: 6px 12px; font-size: 14px; margin-left: 5px; cursor: pointer; }
   </style>
 </head>
 <body>
-  <h2>Chercher un prestataire</h2>
 
-  <input id="adresse" type="text" placeholder="Adresse du client" style="width:300px;">
-  <button onclick="chercher()">Chercher</button>
+<h2>Chercher un prestataire</h2>
+<input id="adresse" type="text" placeholder="Adresse du client" style="width:300px;">
+<button onclick="chercher()">Chercher</button>
 
-  <div id="resultat"></div>
-  <div id="map"></div>
+<div id="resultat"></div>
+<div id="map"></div>
 
-  <script>
-    // Carte Leaflet centrée sur la France
-    const map = L.map('map').setView([46.5, 2.5], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+<script>
+  // Carte Leaflet centrée sur la France
+  const map = L.map('map').setView([46.5, 2.5], 6);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-    let marker = null;
+  let marker = null;
 
-    // Prestataires par département
-    const prestataires = {
-      "Ain": null,
-      "Aisne": "Univers bureau 69",
-      "Allier": null,
-      "Alpes-de-Haute-Provence": "DS transport 13",
-      "Hautes-Alpes": "DS transport 13",
-      "Alpes-Maritimes": "DS transport 13",
-      "Ardèche": null,
-      "Ardennes": "Ctm Bureautique",
-      "Ariège": "DS Transport 31",
-      "Aube": "Ctm Bureautique",
-      "Aude": "DS Transport 31",
-      "Aveyron": "DS Transport 31",
-      "Bouches-du-Rhône": "DS transport 13",
-      "Calvados": "LTM 14",
-      "Cantal": null,
-      "Charente": "TS express",
-      "Charente-Maritime": "TS express",
-      "Cher": null,
-      "Corrèze": null,
-      "Côte-d'Or": null,
-      "Côtes-d'Armor": "LTM 56",
-      "Creuse": null,
-      "Dordogne": "TS express",
-      "Doubs": null,
-      "Drôme": null,
-      "Eure": null,
-      "Eure-et-Loir": null,
-      "Finistère": "LTM 56",
-      "Corse-du-Sud": "DS transport 13",
-      "Haute-Corse": "DS transport 13",
-      "Gard": "DS transport 13",
-      "Haute-Garonne": "DS Transport 31",
-      "Gers": "DS Transport 31",
-      "Gironde": "TS express",
-      "Hérault": "DS transport 13",
-      "Ille-et-Vilaine": "LTM 56",
-      "Indre": null,
-      "Indre-et-Loire": null,
-      "Isère": "Univers bureau 69",
-      "Jura": null,
-      "Landes": "TS express",
-      "Loir-et-Cher": null,
-      "Loire": null,
-      "Haute-Loire": null,
-      "Loire-Atlantique": "LTM 44",
-      "Loiret": null,
-      "Lot": "DS Transport 31",
-      "Lot-et-Garonne": "TS express",
-      "Lozère": "DS Transport 31",
-      "Maine-et-Loire": "LTM 44",
-      "Manche": "LTM 14",
-      "Marne": "Ctm Bureautique",
-      "Haute-Marne": "Ctm Bureautique",
-      "Mayenne": "LTM 44",
-      "Meurthe-et-Moselle": "Ctm Bureautique",
-      "Meuse": "Ctm Bureautique",
-      "Morbihan": "LTM 56",
-      "Moselle": "Ctm Bureautique",
-      "Nièvre": null,
-      "Nord": "LTM 59",
-      "Oise": "Univers bureau 69",
-      "Orne": "LTM 14",
-      "Pas-de-Calais": "Univers bureau 69, LTM 59",
-      "Puy-de-Dôme": null,
-      "Pyrénées-Atlantiques": "TS express",
-      "Hautes-Pyrénées": "DS Transport 31",
-      "Pyrénées-Orientales": "DS Transport 31",
-      "Bas-Rhin": "Ctm Bureautique",
-      "Haut-Rhin": "Ctm Bureautique",
-      "Rhône": "Univers bureau 69",
-      "Haute-Saône": null,
-      "Saône-et-Loire": null,
-      "Sarthe": null,
-      "Savoie": null,
-      "Haute-Savoie": null,
-      "Paris": "Tannous/ Dryft",
-      "Seine-Maritime": "Tannous/ Dryft",
-      "Seine-et-Marne": "Tannous/ Dryft",
-      "Yvelines": "Tannous/ Dryft",
-      "Deux-Sèvres": "LTM 44",
-      "Somme": "Univers bureau 69, LTM 59",
-      "Tarn": "DS Transport 31",
-      "Tarn-et-Garonne": "DS Transport 31",
-      "Var": "DS transport 13",
-      "Vaucluse": "DS transport 13",
-      "Vendée": "LTM 44",
-      "Vienne": "TS express",
-      "Haute-Vienne": "TS express",
-      "Vosges": "Ctm Bureautique",
-      "Yonne": null,
-      "Territoire de Belfort": null,
-      "Essonne": "Univers bureau 69",
-      "Hauts-de-Seine": "Tannous/ Dryft",
-      "Seine-Saint-Denis": "Tannous/ Dryft",
-      "Val-de-Marne": "Tannous/ Dryft",
-      "Val-d'Oise": "Univers bureau 69"
-    };
+  // Prestataires par code département
+  const prestatairesParCode = {
+    "01": null,
+    "02": "Univers bureau 69",
+    "03": null,
+    "04": "DS transport 13",
+    "05": "DS transport 13",
+    "06": "DS transport 13",
+    "07": null,
+    "08": "Ctm Bureautique",
+    "09": "DS Transport 31",
+    "10": "Ctm Bureautique",
+    "11": "DS Transport 31",
+    "12": "DS Transport 31",
+    "13": "DS transport 13",
+    "14": "LTM 14",
+    "16": "TS express",
+    "17": "TS express",
+    "22": "LTM 56",
+    "24": "TS express",
+    "29": "LTM 56",
+    "30": "DS transport 13",
+    "31": "DS Transport 31",
+    "32": "DS Transport 31",
+    "33": "TS express",
+    "34": "DS transport 13",
+    "35": "LTM 56",
+    "40": "TS express",
+    "44": "LTM 44",
+    "47": "TS express",
+    "49": "LTM 44",
+    "50": "LTM 14",
+    "53": "LTM 44",
+    "56": "LTM 56",
+    "59": "LTM 59",
+    "60": "Univers bureau 69",
+    "61": "LTM 14",
+    "62": "Univers bureau 69, LTM 59",
+    "64": "TS express",
+    "65": "DS Transport 31",
+    "66": "DS Transport 31",
+    "69": "Univers bureau 69",
+    "75": "Tannous/ Dryft",
+    "77": "Tannous/ Dryft",
+    "78": "Tannous/ Dryft",
+    "80": "Univers bureau 69, LTM 59",
+    "91": "Univers bureau 69",
+    "92": "Tannous/ Dryft",
+    "93": "Tannous/ Dryft",
+    "94": "Tannous/ Dryft",
+    "95": "Univers bureau 69"
+    // Compléter les autres codes si nécessaire
+  };
 
-    async function chercher() {
-      const adresse = document.getElementById("adresse").value.trim();
-      if (!adresse) return;
+  async function chercher() {
+    const adresse = document.getElementById("adresse").value.trim();
+    if (!adresse) return;
 
-      const url = `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(adresse)}&limit=1`;
-      const res = await fetch(url);
-      const data = await res.json();
+    const url = `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(adresse)}&limit=1`;
+    const res = await fetch(url);
+    const data = await res.json();
 
-      if (!data.features.length) {
-        document.getElementById("resultat").innerText = "Adresse introuvable.";
-        return;
-      }
-
-      const feature = data.features[0];
-      const coords = feature.geometry.coordinates; // [lon, lat]
-      const departement = feature.properties.context.split(',')[0].trim(); // Extrait le département
-
-      let presta = prestataires[departement] || "Aucun prestataire pour ce département.";
-
-      document.getElementById("resultat").innerHTML =
-        `Département : <b>${departement}</b><br>` +
-        `Prestataire : <b>${presta}</b>`;
-
-      if (marker) map.removeLayer(marker);
-      marker = L.marker([coords[1], coords[0]]).addTo(map);
-      // Pas de zoom automatique
+    if (!data.features.length) {
+      document.getElementById("resultat").innerText = "Adresse introuvable.";
+      return;
     }
-  </script>
+
+    const feature = data.features[0];
+    const coords = feature.geometry.coordinates; // [lon, lat]
+    const codeInsee = feature.properties.citycode; // ex: "75056"
+    const departementCode = codeInsee.substring(0, 2); // "75" pour Paris
+
+    const presta = prestatairesParCode[departementCode] || "Aucun prestataire pour ce département.";
+
+    document.getElementById("resultat").innerHTML =
+      `Département (code) : <b>${departementCode}</b><br>` +
+      `Prestataire : <b>${presta}</b>`;
+
+    if (marker) map.removeLayer(marker);
+    marker = L.marker([coords[1], coords[0]]).addTo(map);
+    // Pas de zoom automatique
+  }
+</script>
+
 </body>
 </html>
