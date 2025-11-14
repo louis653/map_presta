@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Carte prestataires</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <style>
+    #map { height: 500px; margin-top: 20px; }
+    #resultat { margin-top: 10px; font-size: 18px; }
+  </style>
+</head>
+<body>
+  <h2>Chercher un prestataire</h2>
+
+  <input id="adresse" type="text" placeholder="Adresse du client" style="width:300px;">
+  <button onclick="chercher()">Chercher</button>
+
+  <div id="resultat"></div>
+  <div id="map"></div>
+
+  <script>
+    // Carte Leaflet centrée sur la France
+    const map = L.map('map').setView([46.5, 2.5], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    let marker = null;
+
+    // Prestataires par département
+    const prestataires = {
+      "Ain": null,
+      "Aisne": "Univers bureau 69",
+      "Allier": null,
+      "Alpes-de-Haute-Provence": "DS transport 13",
+      "Hautes-Alpes": "DS transport 13",
+      "Alpes-Maritimes": "DS transport 13",
+      "Ardèche": null,
+      "Ardennes": "Ctm Bureautique",
+      "Ariège": "DS Transport 31",
+      "Aube": "Ctm Bureautique",
+      "Aude": "DS Transport 31",
+      "Aveyron": "DS Transport 31",
+      "Bouches-du-Rhône": "DS transport 13",
+      "Calvados": "LTM 14",
+      "Cantal": null,
+      "Charente": "TS express",
+      "Charente-Maritime": "TS express",
+      "Cher": null,
+      "Corrèze": null,
+      "Côte-d'Or": null,
+      "Côtes-d'Armor": "LTM 56",
+      "Creuse": null,
+      "Dordogne": "TS express",
+      "Doubs": null,
+      "Drôme": null,
+      "Eure": null,
+      "Eure-et-Loir": null,
+      "Finistère": "LTM 56",
+      "Corse-du-Sud": "DS transport 13",
+      "Haute-Corse": "DS transport 13",
+      "Gard": "DS transport 13",
+      "Haute-Garonne": "DS Transport 31",
+      "Gers": "DS Transport 31",
+      "Gironde": "TS express",
+      "Hérault": "DS transport 13",
+      "Ille-et-Vilaine": "LTM 56",
+      "Indre": null,
+      "Indre-et-Loire": null,
+      "Isère": "Univers bureau 69",
+      "Jura": null,
+      "Landes": "TS express",
+      "Loir-et-Cher": null,
+      "Loire": null,
+      "Haute-Loire": null,
+      "Loire-Atlantique": "LTM 44",
+      "Loiret": null,
+      "Lot": "DS Transport 31",
+      "Lot-et-Garonne": "TS express",
+      "Lozère": "DS Transport 31",
+      "Maine-et-Loire": "LTM 44",
+      "Manche": "LTM 14",
+      "Marne": "Ctm Bureautique",
+      "Haute-Marne": "Ctm Bureautique",
+      "Mayenne": "LTM 44",
+      "Meurthe-et-Moselle": "Ctm Bureautique",
+      "Meuse": "Ctm Bureautique",
+      "Morbihan": "LTM 56",
+      "Moselle": "Ctm Bureautique",
+      "Nièvre": null,
+      "Nord": "LTM 59",
+      "Oise": "Univers bureau 69",
+      "Orne": "LTM 14",
+      "Pas-de-Calais": "Univers bureau 69, LTM 59",
+      "Puy-de-Dôme": null,
+      "Pyrénées-Atlantiques": "TS express",
+      "Hautes-Pyrénées": "DS Transport 31",
+      "Pyrénées-Orientales": "DS Transport 31",
+      "Bas-Rhin": "Ctm Bureautique",
+      "Haut-Rhin": "Ctm Bureautique",
+      "Rhône": "Univers bureau 69",
+      "Haute-Saône": null,
+      "Saône-et-Loire": null,
+      "Sarthe": null,
+      "Savoie": null,
+      "Haute-Savoie": null,
+      "Paris": "Tannous/ Dryft",
+      "Seine-Maritime": "Tannous/ Dryft",
+      "Seine-et-Marne": "Tannous/ Dryft",
+      "Yvelines": "Tannous/ Dryft",
+      "Deux-Sèvres": "LTM 44",
+      "Somme": "Univers bureau 69, LTM 59",
+      "Tarn": "DS Transport 31",
+      "Tarn-et-Garonne": "DS Transport 31",
+      "Var": "DS transport 13",
+      "Vaucluse": "DS transport 13",
+      "Vendée": "LTM 44",
+      "Vienne": "TS express",
+      "Haute-Vienne": "TS express",
+      "Vosges": "Ctm Bureautique",
+      "Yonne": null,
+      "Territoire de Belfort": null,
+      "Essonne": "Univers bureau 69",
+      "Hauts-de-Seine": "Tannous/ Dryft",
+      "Seine-Saint-Denis": "Tannous/ Dryft",
+      "Val-de-Marne": "Tannous/ Dryft",
+      "Val-d'Oise": "Univers bureau 69"
+    };
+
+    async function chercher() {
+      const adresse = document.getElementById("adresse").value.trim();
+      if (!adresse) return;
+
+      const url = `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(adresse)}&limit=1`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (!data.features.length) {
+        document.getElementById("resultat").innerText = "Adresse introuvable.";
+        return;
+      }
+
+      const feature = data.features[0];
+      const coords = feature.geometry.coordinates; // [lon, lat]
+      const departement = feature.properties.context.split(',')[0].trim(); // Extrait le département
+
+      let presta = prestataires[departement] || "Aucun prestataire pour ce département.";
+
+      document.getElementById("resultat").innerHTML =
+        `Département : <b>${departement}</b><br>` +
+        `Prestataire : <b>${presta}</b>`;
+
+      if (marker) map.removeLayer(marker);
+      marker = L.marker([coords[1], coords[0]]).addTo(map);
+      // Pas de zoom automatique
+    }
+  </script>
+</body>
+</html>
