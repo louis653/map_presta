@@ -175,7 +175,20 @@
         };
 
         // URL de ton endpoint Google Apps Script
-       const API_URL = "https://script.google.com/macros/s/AKfycbwuHvjHmBrx2Lc_boF5oRBhAxtr1caYSfI62dQy7fWxoU0m5cNZnQFCfOI-VMWB1lRsyA/exec";
+        const API_URL = "https://script.google.com/macros/s/AKfycbwuHvjHmBrx2Lc_boF5oRBhAxtr1caYSfI62dQy7fWxoU0m5cNZnQFCfOI-VMWB1lRsyA/exec";
+
+        // Définition des départements limitrophes pour chaque prestataire (optionnel)
+        const departementsLimitrophes = {
+            "77": ["75", "78", "91", "92", "93", "94", "95"], // Île-de-France pour DMAX IDF
+            "33": ["40", "47", "24", "19", "87"], // Nouvelle-Aquitaine pour TS EXPRESS 33
+            "69": ["01", "42", "38", "26", "07", "71"], // Auvergne-Rhône-Alpes pour UNIVERS BUREAU 69
+            "31": ["09", "11", "12", "32", "46", "48", "65", "64", "81", "82"], // Occitanie pour DMAX 31
+            "13": ["83", "84", "06"], // PACA pour DS TRANSPORT 13
+            "44": ["49", "85", "79", "86", "17"], // Pays de la Loire pour TS EXPRESS 44
+            "17": ["16", "79", "86"], // Nouvelle-Aquitaine pour BTS 17
+            "30": ["13", "34", "48", "66"], // Occitanie pour DS TRANSPORT 34
+            // Ajoute les autres prestataires ici si nécessaire
+        };
 
         let prestataireData = [];
 
@@ -279,8 +292,7 @@
                         prestataire: p.Prestataire,
                         departement: p.Departement.toString(),
                         ville: p.Ville,
-                        zoneCouverture: p.Zone_Couverture ? p.Zone_Couverture.split(',').map(item => item.trim()) : [],
-                        notes: p.Notes,
+                        notes: p.Notes || "",
                         tarifs: {}
                     };
                 }
@@ -294,26 +306,14 @@
             const results = [];
 
             Object.values(parPrestataire).forEach(presta => {
-                const couverture = presta.zoneCouverture.includes(dept);
-
-                if (!couverture) {
-                    results.push({
-                        ...presta,
-                        couvertureOk: false,
-                        prixTotal: null,
-                        zone: null,
-                        detail: []
-                    });
-                    return;
-                }
-
-                // Déterminer la zone
-                let zone = 1;
+                // Déterminer la zone en fonction du département de livraison
+                let zone;
                 if (dept === presta.departement) {
-                    zone = 1;
+                    zone = 1; // Zone 1 = même département que le prestataire
+                } else if (departementsLimitrophes[presta.departement] && departementsLimitrophes[presta.departement].includes(dept)) {
+                    zone = 2; // Zone 2 = département limitrophe
                 } else {
-                    const indexDept = presta.zoneCouverture.indexOf(dept);
-                    zone = indexDept >= 0 && indexDept <= 2 ? 2 : 3;
+                    zone = 3; // Zone 3 = autres départements
                 }
 
                 // Calculer le prix total
@@ -338,19 +338,15 @@
 
                 results.push({
                     ...presta,
-                    couvertureOk: true,
+                    couvertureOk: true, // Tous les prestataires sont "couverts"
                     prixTotal: prixTotal,
                     zone: zone,
                     detail: detail
                 });
             });
 
-            const sorted = results.sort((a, b) => {
-                if (a.couvertureOk && !b.couvertureOk) return -1;
-                if (!a.couvertureOk && b.couvertureOk) return 1;
-                if (a.couvertureOk && b.couvertureOk) return a.prixTotal - b.prixTotal;
-                return 0;
-            });
+            // Trier les résultats par prix
+            const sorted = results.sort((a, b) => a.prixTotal - b.prixTotal);
 
             afficherResultats(sorted, dept, {Solo: qteSolo, Duo: qteDuo, Quattro: qteQuattro});
         }
@@ -376,9 +372,8 @@
             `;
 
             // Calcul économie
-            const resultatsValides = results.filter(r => r.couvertureOk);
-            if (resultatsValides.length >= 2) {
-                const economie = resultatsValides[1].prixTotal - resultatsValides[0].prixTotal;
+            if (results.length >= 2) {
+                const economie = results[1].prixTotal - results[0].prixTotal;
                 economieDiv.innerHTML = `
                     <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded-lg">
                         <div class="flex items-center gap-3">
@@ -387,7 +382,7 @@
                             </svg>
                             <div>
                                 <div class="font-bold text-green-900">💰 Économie : ${economie.toFixed(2)}€</div>
-                                <div class="text-sm text-green-700">En choisissant ${resultatsValides[0].prestataire} plutôt que ${resultatsValides[1].prestataire}</div>
+                                <div class="text-sm text-green-700">En choisissant ${results[0].prestataire} plutôt que ${results[1].prestataire}</div>
                             </div>
                         </div>
                     </div>
@@ -396,12 +391,10 @@
 
             results.forEach((r, index) => {
                 const div = document.createElement('div');
-                const isBest = index === 0 && r.couvertureOk;
+                const isBest = index === 0;
                 const classes = isBest
                     ? 'bg-green-50 border-green-300 shadow-md'
-                    : r.couvertureOk
-                    ? 'bg-white border-gray-200'
-                    : 'bg-gray-50 border-gray-300 opacity-60';
+                    : 'bg-white border-gray-200';
 
                 div.className = `p-5 rounded-xl border-2 transition-all ${classes}`;
 
@@ -411,36 +404,27 @@
                             <div class="flex items-center gap-3 mb-2 flex-wrap">
                                 ${isBest ? '<span class="px-3 py-1 bg-green-600 text-white text-xs font-bold rounded-full whitespace-nowrap">🏆 MEILLEUR CHOIX</span>' : ''}
                                 <h3 class="text-lg font-bold text-gray-900">${r.prestataire}</h3>
-                                ${!r.couvertureOk ? '<span class="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-semibold rounded whitespace-nowrap">Zone non couverte</span>' : ''}
                             </div>
                             <div class="text-sm text-gray-600 space-y-1">
                                 <div>📍 Dépôt : ${r.ville} (${r.departement})</div>
+                                <div>🎯 Zone : ${r.zone}</div>
+                                ${r.notes ? `<div>⏱️ ${r.notes}</div>` : ''}
+                                <div class="mt-2 font-medium">Détail :</div>
                 `;
 
-                if (r.couvertureOk) {
-                    contenu += `<div>🎯 Zone : ${r.zone}</div>`;
-                    if (r.notes) contenu += `<div>⏱️ ${r.notes}</div>`;
-                    contenu += `<div class="mt-2 font-medium">Détail :</div>`;
-                    r.detail.forEach(d => {
-                        contenu += `<div class="ml-2">• ${d.qte} × ${d.type} à ${d.prixUnit}€ = ${d.prixTotal}€</div>`;
-                    });
-                }
+                r.detail.forEach(d => {
+                    contenu += `<div class="ml-2">• ${d.qte} × ${d.type} à ${d.prixUnit}€ = ${d.prixTotal}€</div>`;
+                });
 
                 contenu += `
                             </div>
                         </div>
-                `;
-
-                if (r.couvertureOk) {
-                    contenu += `
                         <div class="text-right">
                             <div class="text-3xl sm:text-4xl font-bold ${isBest ? 'text-green-600' : 'text-indigo-600'}">${r.prixTotal.toFixed(2)}€</div>
                             <div class="text-sm text-gray-500">HT Total</div>
                         </div>
-                    `;
-                }
-
-                contenu += `</div>`;
+                    </div>
+                `;
 
                 div.innerHTML = contenu;
                 liste.appendChild(div);
