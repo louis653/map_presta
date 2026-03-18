@@ -23,8 +23,13 @@
                             <p class="text-gray-600 text-sm sm:text-base">Livraison Cabines Acoustiques</p>
                         </div>
                     </div>
-                    <div class="px-4 py-2 bg-green-100 text-green-800 rounded-lg font-semibold text-sm">
-                        ✓ 95 départements
+                    <div class="flex gap-4">
+                        <div class="px-4 py-2 bg-green-100 text-green-800 rounded-lg font-semibold text-sm">
+                            ✓ 95 départements
+                        </div>
+                        <a href="liste-prestataires.html" class="px-4 py-2 bg-indigo-100 text-indigo-800 rounded-lg font-semibold text-sm hover:bg-indigo-200 transition">
+                            📋 Voir tous les tarifs
+                        </a>
                     </div>
                 </div>
             </div>
@@ -170,7 +175,7 @@
         };
 
         // URL de ton endpoint Google Apps Script
-        const API_URL = "https://script.google.com/macros/s/AKfycbxILB5C7wK6XrNPGgshqFRNi0gC0j_efzw0xXo8kbODeYuFbIminq0SeKRXy1AwXTD25w/exec";
+       const API_URL = "https://script.google.com/a/macros/workwithisland.com/s/AKfycbyBuF-McVXMWU7vA78OEyCQFVi1drVMG5ByeSrA7i9hl8Z_UlV_aw_lylhKo63mPNlOQA/exec";
 
         let prestataireData = [];
 
@@ -215,7 +220,7 @@
         }
 
         function updateStats() {
-            const uniquePrestataires = [...new Set(prestataireData.map(p => p.prestataire))];
+            const uniquePrestataires = [...new Set(prestataireData.map(p => p.Prestataire))];
             document.getElementById('nbPrestataires').textContent = uniquePrestataires.length;
         }
 
@@ -268,21 +273,21 @@
             // Regrouper par prestataire
             const parPrestataire = {};
             prestataireData.forEach(p => {
-                const key = p.prestataire;
+                const key = p.Prestataire;
                 if (!parPrestataire[key]) {
                     parPrestataire[key] = {
-                        prestataire: p.prestataire,
-                        departement: p.departement,
-                        ville: p.ville,
-                        zoneCouverture: p.zoneCouverture,
-                        notes: p.notes,
+                        prestataire: p.Prestataire,
+                        departement: p.Departement.toString(),
+                        ville: p.Ville,
+                        zoneCouverture: p.Zone_Couverture.split(',').map(item => item.trim()),
+                        notes: p.Notes,
                         tarifs: {}
                     };
                 }
-                parPrestataire[key].tarifs[p.typeCabine] = {
-                    zone1: p.zone1Prix,
-                    zone2: p.zone2Prix,
-                    zone3: p.zone3Prix
+                parPrestataire[key].tarifs[p.Type_Cabine] = {
+                    zone1: p.Zone_1_Prix,
+                    zone2: p.Zone_2_Prix,
+                    zone3: p.Zone_3_Prix
                 };
             });
 
