@@ -238,4 +238,212 @@
         function testRapide(dept, quantites) {
             document.getElementById('departementLivraison').value = dept;
 
-            document.getElementById('qteSolo').value
+            document.getElementById('qteSolo').value = quantites.Solo || 0;
+            document.getElementById('qteDuo').value = quantites.Duo || 0;
+            document.getElementById('qteQuattro').value = quantites.Quattro || 0;
+
+            document.getElementById('checkSolo').checked = quantites.Solo > 0;
+            document.getElementById('checkDuo').checked = quantites.Duo > 0;
+            document.getElementById('checkQuattro').checked = quantites.Quattro > 0;
+
+            comparerPrestataires();
+        }
+
+        function comparerPrestataires() {
+            const dept = document.getElementById('departementLivraison').value;
+            const qteSolo = parseInt(document.getElementById('qteSolo').value) || 0;
+            const qteDuo = parseInt(document.getElementById('qteDuo').value) || 0;
+            const qteQuattro = parseInt(document.getElementById('qteQuattro').value) || 0;
+
+            if (!dept) {
+                alert("Veuillez sélectionner un département");
+                return;
+            }
+
+            if (qteSolo === 0 && qteDuo === 0 && qteQuattro === 0) {
+                alert("Veuillez sélectionner au moins une cabine");
+                return;
+            }
+
+            // Regrouper par prestataire
+            const parPrestataire = {};
+            prestataireData.forEach(p => {
+                const key = p.prestataire;
+                if (!parPrestataire[key]) {
+                    parPrestataire[key] = {
+                        prestataire: p.prestataire,
+                        departement: p.departement,
+                        ville: p.ville,
+                        zoneCouverture: p.zoneCouverture,
+                        notes: p.notes,
+                        tarifs: {}
+                    };
+                }
+                parPrestataire[key].tarifs[p.typeCabine] = {
+                    zone1: p.zone1Prix,
+                    zone2: p.zone2Prix,
+                    zone3: p.zone3Prix
+                };
+            });
+
+            const results = [];
+
+            Object.values(parPrestataire).forEach(presta => {
+                const couverture = presta.zoneCouverture.includes(dept);
+
+                if (!couverture) {
+                    results.push({
+                        ...presta,
+                        couvertureOk: false,
+                        prixTotal: null,
+                        zone: null,
+                        detail: []
+                    });
+                    return;
+                }
+
+                // Déterminer la zone
+                let zone = 1;
+                if (dept === presta.departement) {
+                    zone = 1;
+                } else {
+                    const indexDept = presta.zoneCouverture.indexOf(dept);
+                    zone = indexDept >= 0 && indexDept <= 2 ? 2 : 3;
+                }
+
+                // Calculer le prix total
+                let prixTotal = 0;
+                const detail = [];
+
+                if (qteSolo > 0 && presta.tarifs.Solo) {
+                    const prix = zone === 1 ? presta.tarifs.Solo.zone1 : zone === 2 ? presta.tarifs.Solo.zone2 : presta.tarifs.Solo.zone3;
+                    prixTotal += prix * qteSolo;
+                    detail.push({type: 'Solo', qte: qteSolo, prixUnit: prix, prixTotal: prix * qteSolo});
+                }
+                if (qteDuo > 0 && presta.tarifs.Duo) {
+                    const prix = zone === 1 ? presta.tarifs.Duo.zone1 : zone === 2 ? presta.tarifs.Duo.zone2 : presta.tarifs.Duo.zone3;
+                    prixTotal += prix * qteDuo;
+                    detail.push({type: 'Duo', qte: qteDuo, prixUnit: prix, prixTotal: prix * qteDuo});
+                }
+                if (qteQuattro > 0 && presta.tarifs.Quattro) {
+                    const prix = zone === 1 ? presta.tarifs.Quattro.zone1 : zone === 2 ? presta.tarifs.Quattro.zone2 : presta.tarifs.Quattro.zone3;
+                    prixTotal += prix * qteQuattro;
+                    detail.push({type: 'Quattro', qte: qteQuattro, prixUnit: prix, prixTotal: prix * qteQuattro});
+                }
+
+                results.push({
+                    ...presta,
+                    couvertureOk: true,
+                    prixTotal: prixTotal,
+                    zone: zone,
+                    detail: detail
+                });
+            });
+
+            const sorted = results.sort((a, b) => {
+                if (a.couvertureOk && !b.couvertureOk) return -1;
+                if (!a.couvertureOk && b.couvertureOk) return 1;
+                if (a.couvertureOk && b.couvertureOk) return a.prixTotal - b.prixTotal;
+                return 0;
+            });
+
+            afficherResultats(sorted, dept, {Solo: qteSolo, Duo: qteDuo, Quattro: qteQuattro});
+        }
+
+        function afficherResultats(results, dept, quantites) {
+            const liste = document.getElementById('resultatsListe');
+            const economieDiv = document.getElementById('economieInfo');
+            const recapDiv = document.getElementById('recapCommande');
+            liste.innerHTML = '';
+            economieDiv.innerHTML = '';
+
+            // Récap commande
+            const recapItems = [];
+            if (quantites.Solo > 0) recapItems.push(`${quantites.Solo} Solo`);
+            if (quantites.Duo > 0) recapItems.push(`${quantites.Duo} Duo`);
+            if (quantites.Quattro > 0) recapItems.push(`${quantites.Quattro} Quattro`);
+
+            recapDiv.innerHTML = `
+                <div class="bg-indigo-50 border-l-4 border-indigo-500 p-4 rounded-lg">
+                    <div class="font-semibold text-indigo-900">📦 Commande : ${recapItems.join(', ')}</div>
+                    <div class="text-sm text-indigo-700">📍 Livraison : ${dept} - ${departementsData[dept]}</div>
+                </div>
+            `;
+
+            // Calcul économie
+            const resultatsValides = results.filter(r => r.couvertureOk);
+            if (resultatsValides.length >= 2) {
+                const economie = resultatsValides[1].prixTotal - resultatsValides[0].prixTotal;
+                economieDiv.innerHTML = `
+                    <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded-lg">
+                        <div class="flex items-center gap-3">
+                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <div>
+                                <div class="font-bold text-green-900">💰 Économie : ${economie.toFixed(2)}€</div>
+                                <div class="text-sm text-green-700">En choisissant ${resultatsValides[0].prestataire} plutôt que ${resultatsValides[1].prestataire}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            results.forEach((r, index) => {
+                const div = document.createElement('div');
+                const isBest = index === 0 && r.couvertureOk;
+                const classes = isBest
+                    ? 'bg-green-50 border-green-300 shadow-md'
+                    : r.couvertureOk
+                    ? 'bg-white border-gray-200'
+                    : 'bg-gray-50 border-gray-300 opacity-60';
+
+                div.className = `p-5 rounded-xl border-2 transition-all ${classes}`;
+
+                let contenu = `
+                    <div class="flex items-start justify-between flex-wrap gap-4">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-3 mb-2 flex-wrap">
+                                ${isBest ? '<span class="px-3 py-1 bg-green-600 text-white text-xs font-bold rounded-full whitespace-nowrap">🏆 MEILLEUR CHOIX</span>' : ''}
+                                <h3 class="text-lg font-bold text-gray-900">${r.prestataire}</h3>
+                                ${!r.couvertureOk ? '<span class="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-semibold rounded whitespace-nowrap">Zone non couverte</span>' : ''}
+                            </div>
+                            <div class="text-sm text-gray-600 space-y-1">
+                                <div>📍 Dépôt : ${r.ville} (${r.departement})</div>
+                `;
+
+                if (r.couvertureOk) {
+                    contenu += `<div>🎯 Zone : ${r.zone}</div>`;
+                    if (r.notes) contenu += `<div>⏱️ ${r.notes}</div>`;
+                    contenu += `<div class="mt-2 font-medium">Détail :</div>`;
+                    r.detail.forEach(d => {
+                        contenu += `<div class="ml-2">• ${d.qte} × ${d.type} à ${d.prixUnit}€ = ${d.prixTotal}€</div>`;
+                    });
+                }
+
+                contenu += `
+                            </div>
+                        </div>
+                `;
+
+                if (r.couvertureOk) {
+                    contenu += `
+                        <div class="text-right">
+                            <div class="text-3xl sm:text-4xl font-bold ${isBest ? 'text-green-600' : 'text-indigo-600'}">${r.prixTotal.toFixed(2)}€</div>
+                            <div class="text-sm text-gray-500">HT Total</div>
+                        </div>
+                    `;
+                }
+
+                contenu += `</div>`;
+
+                div.innerHTML = contenu;
+                liste.appendChild(div);
+            });
+
+            document.getElementById('resultatsPanel').classList.remove('hidden');
+            document.getElementById('resultatsPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    </script>
+</body>
+</html>
