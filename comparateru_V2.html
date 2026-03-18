@@ -279,7 +279,7 @@
                         prestataire: p.Prestataire,
                         departement: p.Departement.toString(),
                         ville: p.Ville,
-                        zoneCouverture: p.Zone_Couverture.split(',').map(item => item.trim()),
+                        zoneCouverture: p.Zone_Couverture ? p.Zone_Couverture.split(',').map(item => item.trim()) : [],
                         notes: p.Notes,
                         tarifs: {}
                     };
