@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liste des Prestataires et Tarifs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .tarif-cell { @apply px-4 py-2 text-center; }
+        .tarif-header { @apply px-4 py-3 bg-indigo-50 font-semibold text-indigo-900; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen p-4 sm:p-8">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="bg-white rounded-2xl shadow-lg p-6 mb-8">
+            <div class="flex items-center gap-4">
+                <div class="bg-indigo-100 p-3 rounded-xl">
+                    <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">Liste des Prestataires et Tarifs</h1>
+                    <p class="text-gray-600">Tarifs par type de cabine et par zone (HT)</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtres -->
+        <div class="bg-white rounded-xl shadow p-6 mb-8">
+            <div class="flex flex-wrap gap-4 items-center">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Filtrer par type</label>
+                    <select id="filterType" class="px-4 py-2 border border-gray-300 rounded-lg">
+                        <option value="">Tous les types</option>
+                        <option value="Solo">Solo</option>
+                        <option value="Duo">Duo</option>
+                        <option value="Quattro">Quattro</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Rechercher</label>
+                    <input type="text" id="searchPrestataire" placeholder="Nom du prestataire..."
+                           class="px-4 py-2 border border-gray-300 rounded-lg w-64">
+                </div>
+            </div>
+        </div>
+
+        <!-- Tableau des prestataires -->
+        <div class="bg-white rounded-xl shadow overflow-hidden">
+            <div class="overflow-x-auto">
+                <table id="prestatairesTable" class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="tarif-header">Prestataire</th>
+                            <th class="tarif-header">Ville (Département)</th>
+                            <th class="tarif-header">Type</th>
+                            <th class="tarif-header">Zone 1</th>
+                            <th class="tarif-header">Zone 2</th>
+                            <th class="tarif-header">Zone 3</th>
+                            <th class="tarif-header">Zones couvertes</th>
+                            <th class="tarif-header">Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <!-- Les données seront insérées ici par JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // URL de ton endpoint Google Apps Script (la même que pour le comparateur)
+        const API_URL = "https://script.google.com/macros/s/TON_ID_DE_SCRIPT/exec";
+
+        let prestatairesData = [];
+
+        // Chargement des données
+        async function loadPrestataires() {
+            try {
+                const response = await fetch(API_URL);
+                prestatairesData = await response.json();
+                displayPrestataires();
+                setupFilters();
+            } catch (error) {
+                console.error("Erreur de chargement :", error);
+                document.getElementById('prestatairesTable').innerHTML =
+                    `<tr><td colspan="8" class="px-4 py-8 text-center text-red-500">
+                        Impossible de charger les données. Vérifie l'URL ou ta connexion.
+                    </td></tr>`;
+            }
+        }
+
+        // Affichage des prestataires dans le tableau
+        function displayPrestataires(filteredData = null) {
+            const data = filteredData || prestatairesData;
+            const tbody = document.querySelector('#prestatairesTable tbody');
+            tbody.innerHTML = '';
+
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                row.innerHTML = `
+                    <td class="tarif-cell font-medium">${item.Prestataire}</td>
+                    <td class="tarif-cell">${item.Ville} (${item.Departement})</td>
+                    <td class="tarif-cell">${item.Type_Cabine}</td>
+                    <td class="tarif-cell">${item.Zone_1_Prix} €</td>
+                    <td class="tarif-cell">${item.Zone_2_Prix} €</td>
+                    <td class="tarif-cell">${item.Zone_3_Prix} €</td>
+                    <td class="tarif-cell">${item.Zone_Couverture}</td>
+                    <td class="tarif-cell">${item.Notes || '-'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Configuration des filtres
+        function setupFilters() {
+            const filterType = document.getElementById('filterType');
+            const searchInput = document.getElementById('searchPrestataire');
+
+            // Filtre par type
+            filterType.addEventListener('change', () => {
+                const type = filterType.value;
+                const searchTerm = searchInput.value.toLowerCase();
+                let filteredData = [...prestatairesData];
+
+                if (type) {
+                    filteredData = filteredData.filter(item => item.Type_Cabine === type);
+                }
+
+                if (searchTerm) {
+                    filteredData = filteredData.filter(item =>
+                        item.Prestataire.toLowerCase().includes(searchTerm)
+                    );
+                }
+
+                displayPrestataires(filteredData);
+            });
+
+            // Recherche par nom
+            searchInput.addEventListener('input', () => {
+                const type = filterType.value;
+                const searchTerm = searchInput.value.toLowerCase();
+                let filteredData = [...prestatairesData];
+
+                if (type) {
+                    filteredData = filteredData.filter(item => item.Type_Cabine === type);
+                }
+
+                if (searchTerm) {
+                    filteredData = filteredData.filter(item =>
+                        item.Prestataire.toLowerCase().includes(searchTerm)
+                    );
+                }
+
+                displayPrestataires(filteredData);
+            });
+        }
+
+        // Chargement initial
+        document.addEventListener('DOMContentLoaded', loadPrestataires);
+    </script>
+</body>
+</html>
